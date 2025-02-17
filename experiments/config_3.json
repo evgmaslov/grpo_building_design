@@ -1,0 +1,55 @@
+{
+    "dataset":{
+        "max_n_rooms":8,
+        "test_size":0.01,
+        "tokenizer_name":"deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+        "base_system_prompt":"You receive a set of requirements for the apartment, which include a set of rooms and connections between them. Create an apartment plan in json format, in which you indicate the contour points for each room. Also indicate the doors, their installation points and which rooms they connect.\nThe response should be a json dictionary with two keys: \"rooms\" and \"doors\". The \"rooms\" key should contain a list of rooms. Each room should be a dictionary with two keys: \"name\" and \"polygon\".\nThe \"name\" key should contain a string with the name of the room, and the \"polygon\" key should contain the coordinates of the room boundary points. The coordinates must be represented by a list of lists, each of which contains 2 numbers - the coordinates of the point in millimeters. For example, for a square room, the coordinates might look like this: [[0, 0], [0, 1000], [1000, 1000], [1000, 0]].\nThe \"doors\" key of the main dictionary must contain a list of doors. Each door should be a dictionary with two keys: \"name\" and \"position\". The \"name\" key must contain the name of the door in the format \"first room -> second room\". For example, if a door connects the kitchen to the living room, the door name would be \"kitchen -> living room\". The \"position\" key must contain the coordinates of the door in a list format of two numbers. The coordinates should be such that the door is exactly on the border line of the room.\nAll walls in the apartment must be orthogonal; angles other than right angles are not allowed. Rooms should not overlap each other.\nEnclose the answer in <answer> and </answer> tokens. Before answering, write down your reasoning, surrounding it with <think> and </think> tokens.",
+        "few_shot_template":"Requirements: {requirements}\nFlat: {flat}",
+        "few_shots":[{
+            "requirements": "{\"rooms\": [\"hallway\", \"combined bathroom\", \"kitchen-living room\"], \"connections\": [[\"hallway\", \"combined bathroom\"], [\"hallway\", \"kitchen-living room\"]]}",
+            "flat":"<think>Okay, I need to create a JSON apartment plan based on the given requirements. Let me start by understanding the problem. The user wants a layout with three rooms: hallway, combined bathroom, and kitchen-living room. The connections are between hallway and combined bathroom, and hallway and kitchen-living room. All walls must be orthogonal, so everything has to be rectangles with right angles. No overlaps allowed, and doors must be on the shared walls.\nFirst, I should sketch a possible layout. Since the hallway connects to both the bathroom and kitchen-living room, maybe the hallway is in the center or adjacent to both. Let's imagine a simple arrangement. Let's place the hallway as a central corridor. Then, the combined bathroom could be on one side and the kitchen-living room on the other. Alternatively, maybe all three rooms are in a line. But arranging them in a line might complicate the connections.\nAlternative approach: the apartment is a larger rectangle. The entrance is via the hallway, which is a horizontal corridor. Let's place the hallway at the bottom. So the hallway is from (0,0) to (5000, 1000). Then, the combined bathroom is on the left side above the hallway, and the kitchen-living room on the right side above the hallway. So:\n- Hallway: [[0,0], [0,1000], [5000,1000], [5000,0]]\n- Combined bathroom: [[0,1000], [0,3000], [2000,3000], [2000,1000]]\n- Kitchen-living room: [[2000,1000], [2000,3000], [5000,3000], [5000,1000]]\nWait, but then the combined bathroom and kitchen-living room share a wall at x=2000, y=1000 to 3000. But the hallway is below them. The doors would be on the hallway's north wall (y=1000). So the doors would be placed along y=1000. For the bathroom, the door could be at (1000, 1000), which is on the shared wall between hallway (0-5000, 0-1000) and bathroom (0-2000, 1000-3000). But wait, the hallway's north wall is y=1000, and the bathroom's south wall is y=1000. So the shared wall is from x=0 to x=2000, y=1000. So the door can be placed at (1000, 1000). Similarly, the kitchen-living room's south wall is y=1000, from x=2000 to 5000. So the door there could be at (3500,1000).\nThis way, the hallway is connected to both rooms via their south walls. The doors would be placed along y=1000. The bathroom's door is at x=1000, y=1000, which is on the shared wall (x 0-2000, y=1000). The kitchen's door is at x=3500, y=1000, which is on the shared wall (x 2000-5000, y=1000). That works. All rooms are rectangles, no overlaps. The combined bathroom and kitchen are adjacent but separated by x=2000.\nSo the doors would be:\n- \"hallway -> combined bathroom\" at [1000, 1000]\n- \"hallway -> kitchen-living room\" at [3500, 1000]\nWait, but according to the problem statement, the door's name should be \"first room -> second room\". So the connections are [\"hallway\", \"combined bathroom\"] and [\"hallway\", \"kitchen-living room\"], so the doors are hallway to each, but the order in the name is \"hallway -> combined bathroom\" and \"hallway -> kitchen-living room\".\nNow, check if the doors are on the border line of both rooms. For example, the bathroom's door at (1000, 1000) is on the south wall of the bathroom (y=1000, x from 0 to 2000) and on the north wall of the hallway (y=1000, x from 0 to 5000). So that point is on both boundaries. Similarly for the kitchen's door.\nSo this seems to satisfy all requirements. Now, the coordinates for the rooms:\nRooms:\n1. Hallway: [[0,0], [0,1000], [5000,1000], [5000,0]]\nWait, but in this arrangement, the hallway is a horizontal corridor from (0,0) to (5000,1000). So the polygon is four points: starting at (0,0), up to (0,1000), then right to (5000,1000), then down to (5000,0), back to (0,0). Yes.\n1. Combined bathroom: [[0,1000], [0,3000], [2000,3000], [2000,1000]]\nThis is a rectangle from x=0 to 2000, y=1000 to 3000.\n1. Kitchen-living room: [[2000,1000], [2000,3000], [5000,3000], [5000,1000]]\nThis is a rectangle from x=2000 to 5000, y=1000 to 3000.\nDoors:\n- \"hallway -> combined bathroom\" at [1000, 1000]\n- \"hallway -> kitchen-living room\" at [3500, 1000]\nAll walls are orthogonal, no overlaps. This seems to fit the requirements. I need to make sure the door positions are exactly on the shared walls. Yes, 1000,1000 is on the hallway's north edge and the bathroom's south edge. Similarly, 3500,1000 is on the hallway's north edge and the kitchen's south edge.\nI think this works. Now, structure the JSON accordingly.</think><answer>{\"rooms\": [{\"name\": \"hallway\", \"polygon\": [[0, 0], [0, 1610], [2000, 1610], [2000, 0]]}, {\"name\": \"combined bathroom\", \"polygon\": [[-1850, 0], [-1850, 1610], [0, 1610], [0, 0]]}, {\"name\": \"kitchen-living room\", \"polygon\": [[-1850, 0], [2000, 0], [2000, -5390], [-1850, -5390]]}], \"doors\": [{\"name\": \"hallway -> combined bathroom\", \"position\": [0, 805]}, {\"name\": \"hallway -> kitchen-living room\", \"position\": [1000, 0]}]}</answer>"
+        }],
+        "user_prompt_template":"Requirements: {sample}\nFlat: "
+    },
+    "model":{
+        "model_name":"deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+        "quant_config":{
+            "load_in_4bit":true,
+            "bnb_4bit_compute_dtype":"float16",
+            "bnb_4bit_quant_type":"nf4",
+            "bnb_4bit_use_double_quant":true
+        },
+        "device_map":"current",
+        "torch_dtype":"float16"
+    },
+    "trainer":{
+        "output_dir":"evgmaslov/DeepSeek-R1-Distill-Qwen-1.5B-flats",
+        "num_train_epochs":1,
+        "per_device_train_batch_size":1,
+        "save_steps":100,
+        "report_to":"wandb",
+        "save_total_limit":2,
+        "push_to_hub":true,
+        "hub_strategy":"checkpoint",
+        "num_generations":8,
+        "logging_steps":1,
+        "temperature":0.9,
+        "max_prompt_length":2048,
+        "max_completion_length":2048,
+        "gradient_accumulation_steps":1,
+        "learning_rate":8e-6,
+        "reward_group_ind":1,
+        "reward_funcs":["common_format_reward",
+        "answer_format_reward",
+        "walls_orthogonality_reward",
+        "doors_consistency_reward",
+        "geometry_consistency_reward",
+        "prompt_consistency_reward"],
+        "peft_config":{
+            "target_modules": [
+                "q_proj",
+                "v_proj"
+            ]
+        }
+    }
+}
