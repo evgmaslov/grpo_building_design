@@ -215,3 +215,4 @@ def init_dataset(config):
     dataset = dataset.map(lambda row: {"prompt":get_prompt(row["prompt"], tokenizer, base_system_prompt, few_shot_template, few_shots, user_prompt_template)})
     dataset = dataset.train_test_split(test_size=test_size, seed=42)
     return dataset
+

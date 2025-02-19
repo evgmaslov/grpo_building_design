@@ -9,11 +9,12 @@ import argparse
 import json
 
 from src.data_utils import init_dataset
-from src.train_utils import init_model, init_trainer
+from src.train_utils import init_trainer
+from src.model_utils import init_train_model
 
 def main(config):
     dataset = init_dataset(config["dataset"])
-    model = init_model(config["model"])
+    model = init_train_model(config["model"])
     trainer = init_trainer(config["trainer"], dataset, model)
     if "resume_from_checkpoint" in config["trainer"]:
         trainer.train(resume_from_checkpoint=config["trainer"]["resume_from_checkpoint"])

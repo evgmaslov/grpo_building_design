@@ -11,29 +11,7 @@ from peft import LoraConfig
 import torch
 from accelerate import Accelerator
 
-def get_inference_text(prompt, text, tokenizer):
-  messages = [
-      {"role": "system", "content": prompt},
-      {"role": "user", "content": text}
-  ]
-  input_text = tokenizer.apply_chat_template(
-      messages,
-      tokenize=False,
-      add_generation_prompt=True
-  )
-  return input_text
-
-def generate(model, tokenizer, generation_config, inp):
-  tokenized_prompt = tokenizer(inp, return_tensors='pt', padding=True, truncation=True)
-  tokenized_prompt_ids = tokenized_prompt["input_ids"].cuda()
-  tokenized_prompt_mask = tokenized_prompt["attention_mask"].cuda()
-  with torch.inference_mode():
-      output = model.generate(**{"input_ids":tokenized_prompt_ids, "attention_mask":tokenized_prompt_mask, "generation_config":generation_config}).detach().cpu()
-  decoded = []
-  for i in range(output.shape[0]):
-    ans = tokenizer.decode(output[i][len(tokenized_prompt[0]):], skip_special_tokens=True)
-    decoded.append(ans)
-  return decoded
+from .inference_utils import generate
 
 class LLMSampleCB(WandbCallback):
     def __init__(self, trainer, test_dataset, num_samples=2, max_new_tokens=2048):
@@ -103,15 +81,15 @@ def common_format_reward(**kwargs):
             reward += 1/8
         if "</answer>" in c:
             reward += 1/8
-        pattern_1 = "<think>.*?</think>"
+        pattern_1 = "<think>(?:.|\n)*?</think>"
         if len(re.findall(pattern_1, c)) == 1:
             reward += 1/8
-        pattern_2 = "<answer>.*?</answer>"
+        pattern_2 = "<answer>(?:.|\n)*?</answer>"
         if len(re.findall(pattern_2, c)) == 1:
             reward += 1/8
         if "</think><answer>" in c:
             reward += 1/8
-        pattern_3 = "<think>.*?</think><answer>.*?</answer>"
+        pattern_3 = "<think>(?:.|\n)*?</think><answer>(?:.|\n)*?</answer>"
         if len(re.findall(pattern_3, c)) == 1:
             reward += 1/8
         rewards.append(reward)
@@ -142,14 +120,10 @@ def answer_format_reward_1(**kwargs):
     prompts = kwargs["prompts"]
     completions = kwargs["completions"]
     rewards = []
-    base_rewards = common_format_reward(**kwargs)
     for i in range(len(completions)):
-        if base_rewards[i] < 1:
-            rewards.append(0)
-            continue
         try:
             c = completions[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             try:
@@ -176,7 +150,7 @@ def walls_consistency_reward_1(**kwargs):
             continue
         try:
             c = completions[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             answer_json = json.loads(answer)
@@ -212,7 +186,7 @@ def doors_consistency_reward_1(**kwargs):
             continue
         try:
             c = completions[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             answer_json = json.loads(answer)
@@ -280,7 +254,7 @@ def geometry_consistency_reward_1(**kwargs):
             continue
         try:
             c = completions[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             answer_json = json.loads(answer)
@@ -312,7 +286,7 @@ def prompt_consistency_reward_1(**kwargs):
         try:
             c = completions[i]
             p = prompts[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             answer_json = json.loads(answer)
@@ -354,14 +328,10 @@ def answer_format_reward_2(**kwargs):
     prompts = kwargs["prompts"]
     completions = kwargs["completions"]
     rewards = []
-    base_rewards = common_format_reward(**kwargs)
     for i in range(len(completions)):
-        if base_rewards[i] < 1:
-            rewards.append(0)
-            continue
         try:
             c = completions[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             try:
@@ -374,6 +344,7 @@ def answer_format_reward_2(**kwargs):
             result = check_format(answer_json, answer_format)
             rewards.append(result)
         except:
+            raise
             rewards.append(0)
     return rewards
 
@@ -388,7 +359,7 @@ def walls_orthogonality_reward_2(**kwargs):
             continue
         try:
             c = completions[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             answer_json = json.loads(answer)
@@ -421,7 +392,7 @@ def doors_consistency_reward_2(**kwargs):
             continue
         try:
             c = completions[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             answer_json = json.loads(answer)
@@ -472,7 +443,7 @@ def geometry_consistency_reward_2(**kwargs):
             continue
         try:
             c = completions[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             answer_json = json.loads(answer)
@@ -504,12 +475,12 @@ def prompt_consistency_reward_2(**kwargs):
         try:
             c = completions[i]
             p = prompts[i]
-            pattern = "(?<=\</think\>\<answer>).*?(?=\</answer\>)"
+            pattern = "(?<=\<answer>)(?:.|\n)*?(?=\</answer\>)"
             answer = re.findall(pattern, c)[0]
             #answer = c
             answer_json = json.loads(answer)
 
-            pattern = "(?<=Requirements: ).*?(?=\nFlat:)"
+            pattern = "(?<=Requirements: )(?:.|\n)*?(?=\nFlat:)"
             requirements = json.loads(re.findall(pattern, p)[0])
 
             p_rooms = set(requirements["rooms"])
@@ -607,45 +578,6 @@ def init_trainer(config, dataset, model):
     )
     
     return trainer
-
-def init_model(config):
-    model_name = config["model_name"]
-    quant_config = None
-    if "quant_config" in config:
-        quant_args = {}
-        if "load_in_4bit" in config["quant_config"]:
-            quant_args["load_in_4bit"] = config["quant_config"]["load_in_4bit"]
-        if "bnb_4bit_compute_dtype" in config["quant_config"]:
-            value = None
-            if config["quant_config"]["bnb_4bit_compute_dtype"] == "float16":
-                value = torch.float16
-            else:
-                raise TypeError
-            quant_args["bnb_4bit_compute_dtype"] = value
-        if "bnb_4bit_quant_type" in config["quant_config"]:
-            quant_args["bnb_4bit_quant_type"] = config["quant_config"]["bnb_4bit_quant_type"]
-        if "bnb_4bit_use_double_quant" in config["quant_config"]:
-            quant_args["bnb_4bit_use_double_quant"] = config["quant_config"]["bnb_4bit_use_double_quant"]
-        quant_config = BitsAndBytesConfig(**quant_args)
-
-    device_map = None
-    if config["device_map"] == "current":
-        device_index = Accelerator().process_index
-        device_map = {"": device_index}
-    else:
-        device_map = config["device_map"]
-
-    torch_dtype = None
-    if config["torch_dtype"] == "float16":
-        torch_dtype = torch.float16
-    else:
-        raise TypeError
-
-    model = AutoModelForCausalLM.from_pretrained(model_name,
-                                                 quantization_config=quant_config,
-                                                 device_map=device_map,
-                                                torch_dtype=torch_dtype)
-    return model
 
 
 from typing import Any, Callable, Optional, Sized, Union

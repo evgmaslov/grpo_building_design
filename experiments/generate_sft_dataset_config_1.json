@@ -1,0 +1,35 @@
+{
+    "base_dataset":{
+        "max_n_rooms":8,
+        "test_size":0.01,
+        "tokenizer_name":"deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+        "base_system_prompt":"You receive a set of requirements for the apartment, which include a set of rooms and connections between them. Create an apartment plan in json format, in which you indicate the contour points for each room. Also indicate the doors, their installation points and which rooms they connect.\nThe response should be a json dictionary with two keys: \"rooms\" and \"doors\". The \"rooms\" key should contain a list of rooms. Each room should be a dictionary with two keys: \"name\" and \"polygon\".\nThe \"name\" key should contain a string with the name of the room, and the \"polygon\" key should contain the coordinates of the room boundary points. The coordinates must be represented by a list of lists, each of which contains 2 numbers - the coordinates of the point in millimeters. For example, for a square room, the coordinates might look like this: [[0, 0], [0, 1000], [1000, 1000], [1000, 0]].\nThe \"doors\" key of the main dictionary must contain a list of doors. Each door should be a dictionary with two keys: \"name\" and \"position\". The \"name\" key must contain the name of the door in the format \"first room -> second room\". For example, if a door connects the kitchen to the living room, the door name would be \"kitchen -> living room\". The \"position\" key must contain the coordinates of the door in a list format of two numbers. The coordinates should be such that the door is exactly on the border line of the room.\nAll coordinates can have both positive and negative values.\nAll walls in the apartment must be orthogonal; angles other than right angles are not allowed. Rooms should not overlap each other.\nEnclose the answer in <answer> and </answer> tokens. Before answering, write down your reasoning, surrounding it with <think> and </think> tokens.",
+        "few_shot_template":"Requirements: {requirements}\nFlat: {flat}",
+        "few_shots":[{
+            "requirements": "{\"rooms\": [\"hallway\", \"combined bathroom\", \"kitchen-living room\"], \"connections\": [[\"hallway\", \"combined bathroom\"], [\"hallway\", \"kitchen-living room\"]]}",
+            "flat":"<think></think><answer>{\"rooms\": [{\"name\": \"hallway\", \"polygon\": [[0, 0], [0, 1610], [2000, 1610], [2000, 0]]}, {\"name\": \"combined bathroom\", \"polygon\": [[-1850, 0], [-1850, 1610], [0, 1610], [0, 0]]}, {\"name\": \"kitchen-living room\", \"polygon\": [[-1850, 0], [2000, 0], [2000, -5390], [-1850, -5390]]}], \"doors\": [{\"name\": \"hallway -> combined bathroom\", \"position\": [0, 805]}, {\"name\": \"hallway -> kitchen-living room\", \"position\": [1000, 0]}]}</answer>"
+        }],
+        "user_prompt_template":"Requirements: {sample}\nFlat: "
+    },
+    "inference":{
+        "n_completions_per_sample":4,
+        "n_first_samples":4000,
+        "batch_size":1,
+        "path":"dataset_buffer.json"
+    },
+    "model":{
+        "model_name":"deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+        "device_map":"auto",
+        "torch_dtype":"float16"
+    },
+    "rejection_sampling":{
+        "reward_group_ind":1,
+        "reward_funcs":["common_format_reward",
+        "answer_format_reward",
+        "walls_orthogonality_reward",
+        "doors_consistency_reward",
+        "geometry_consistency_reward",
+        "prompt_consistency_reward"],
+        "per_reward_pass_threshold":[1, 1, 1, 1, 1, 1]
+    }
+}
